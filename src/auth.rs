@@ -12,17 +12,17 @@ struct User {
     user_id: String,
 }
 
-struct UserManager {
+pub struct UserManager {
     users: HashMap<String, User>,
 }
 
 impl UserManager {
-    fn new() -> Self {
+    pub fn new() -> Self {
         UserManager {
             users: HashMap::new(),
         }
     }
-    fn register(&mut self, username: String, password: String) {
+    pub fn register(&mut self, username: String, password: String) {
         let salt = Uuid::new_v4().to_string();
         let salted = format!("{}{}", password, salt);
 
@@ -43,7 +43,7 @@ impl UserManager {
         self.users.insert(username, user);
     }
 
-    fn sign_in(&self, username: String, password: String) -> Result<Uuid, &'static str> {
+    pub fn sign_in(&self, username: String, password: String) -> Result<Uuid, &'static str> {
         let user = self.users.get(&username);
 
         if let Some(user) = user {
