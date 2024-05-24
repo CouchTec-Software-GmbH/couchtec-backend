@@ -1,0 +1,15 @@
+[package]
+name = "couchtec-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+uuid = { version = "1", features = ["v4"] }
+sha2 = "0.10"
+hex = "0.4"
+actix-web = "4.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
