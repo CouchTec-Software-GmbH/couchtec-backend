@@ -1,5 +1,6 @@
 mod db;
 mod handlers;
+mod auth;
 
 use actix_web::{web, App, HttpServer};
 use std::sync::Arc;
