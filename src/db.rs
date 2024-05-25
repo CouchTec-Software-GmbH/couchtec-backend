@@ -1,6 +1,7 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use crate::auth::User;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,6 +44,7 @@ impl CouchDB {
             .basic_auth(&self.auth.0, Some(&self.auth.1))
             .send()
         .await?;
+
 
         let response = response.error_for_status()?;
         let document: Document = response.json().await?;
@@ -92,4 +94,20 @@ impl CouchDB {
         }
     }
 
+
+
+    pub async fn put_user(&self, user: User) -> Result<User , reqwest::Error> {
+        let url = format!("{}/users/{}", self.url, user.email);
+        let response = self
+            .client
+            .put(&url)
+            .header("Content-Type", "application/json")
+            .basic_auth(&self.auth.0, Some(&self.auth.1))
+            .json(&user)
+            .send()
+            .await?;
+
+        let _response = response.error_for_status()?;
+        Ok(user)
+    }
 }
