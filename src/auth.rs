@@ -4,12 +4,11 @@ use sha2::{Sha256, Digest};
 use hex;
 
 
-#[allow(dead_code)]
-struct User {
-    username: String,
-    hashed: String,
-    salt: String,
-    user_id: String,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub email: String,
+    pub hashed: String,
+    pub salt: String,
 }
 
 pub struct UserManager {
