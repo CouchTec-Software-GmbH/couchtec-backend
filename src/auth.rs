@@ -53,15 +53,14 @@ impl UserManager {
         user
     }
 
-    pub fn sign_in(&self, username: String, password: String) -> Result<Uuid, &'static str> {
-        let user = self.users.get(&username);
+    pub fn hash_password(&self, password: String, salt: String) -> String {
+        let salted = format!("{}{}", password, salt);
+        let mut hasher = Sha256::new();
+        hasher.update(salted.as_bytes());
+        let result = hasher.finalize();
+        hex::encode(result)
+    }
 
-        if let Some(user) = user {
-            let salted = format!("{}{}", password, user.salt);
-            let mut hasher = Sha256::new();
-            hasher.update(salted.as_bytes());
-            let result = hasher.finalize();
-            let hashed = hex::encode(result);
     pub fn get_user(&self, email: &str) -> Option<&User> {
         self.users_cache.get(email)
     }
