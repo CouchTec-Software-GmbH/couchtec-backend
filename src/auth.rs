@@ -19,7 +19,8 @@ pub struct UserManager {
 impl UserManager {
     pub fn new() -> Self {
         UserManager {
-            users: HashMap::new(),
+            users_cache: HashMap::new(),
+            session_cache: HashMap::new(),
         }
     }
     pub fn register(&mut self, username: String, password: String) {
