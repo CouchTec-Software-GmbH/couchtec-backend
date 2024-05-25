@@ -12,7 +12,8 @@ pub struct User {
 }
 
 pub struct UserManager {
-    users: HashMap<String, User>,
+    users_cache: HashMap<String, User>,
+    session_cache: HashMap<Uuid, String>,
 }
 
 impl UserManager {
