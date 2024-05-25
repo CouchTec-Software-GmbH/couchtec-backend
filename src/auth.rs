@@ -62,6 +62,9 @@ impl UserManager {
             hasher.update(salted.as_bytes());
             let result = hasher.finalize();
             let hashed = hex::encode(result);
+    pub fn get_user(&self, email: &str) -> Option<&User> {
+        self.users_cache.get(email)
+    }
 
             if hashed == user.hashed {
                 let session_id = Uuid::new_v4();
