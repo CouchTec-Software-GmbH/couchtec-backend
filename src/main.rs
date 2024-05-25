@@ -9,7 +9,7 @@ use db::CouchDB;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let db_url = String::from("https://couchdb-app-service.azurewebsites.net/projects");
+    let db_url = String::from("https://couchdb-app-service.azurewebsites.net");
     let db_username = String::from("admin");
     let db_password = String::from("8RzuxhQ7");
 
