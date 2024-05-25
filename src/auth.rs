@@ -23,6 +23,9 @@ impl UserManager {
             session_cache: HashMap::new(),
         }
     }
+    pub fn insert_user(&mut self, user: User) {
+        self.users_cache.insert(user.email.clone(), user);
+    }
     pub fn register(&mut self, email: String, password: String) -> User {
         let salt = Uuid::new_v4().to_string();
         let salted = format!("{}{}", password, salt);
