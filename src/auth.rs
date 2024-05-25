@@ -23,7 +23,7 @@ impl UserManager {
             session_cache: HashMap::new(),
         }
     }
-    pub fn register(&mut self, username: String, password: String) {
+    pub fn register(&mut self, email: String, password: String) -> User {
         let salt = Uuid::new_v4().to_string();
         let salted = format!("{}{}", password, salt);
 
@@ -32,16 +32,14 @@ impl UserManager {
         let result = hasher.finalize();
 
         let hashed = hex::encode(result);
-        let user_id = Uuid::new_v4().to_string();
 
         let user = User {
-            username: username.clone(),
+            email: email.clone(),
             hashed,
             salt,
-            user_id,
         };
-
-        self.users.insert(username, user);
+        self.users_cache.insert(email, user.clone());
+        user
     }
 
     pub fn sign_in(&self, username: String, password: String) -> Result<Uuid, &'static str> {
