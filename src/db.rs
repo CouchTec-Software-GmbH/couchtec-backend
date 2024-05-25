@@ -35,7 +35,7 @@ impl CouchDB {
     }
 
     pub async fn get_document(&self, id: &str) -> Result<Document, reqwest::Error> {
-        let url = format!("{}/{}", self.url, id);
+        let url = format!("{}/projects/{}", self.url, id);
         let response = self
             .client
             .get(&url)
@@ -50,7 +50,7 @@ impl CouchDB {
     }
 
     pub async fn put_document(&self, id: &str, data: Value) -> Result<Document, reqwest::Error> {
-        let url = format!("{}/{}", self.url, id);
+        let url = format!("{}/projects/{}", self.url, id);
         match self.get_document(id).await {
             Ok(doc) => {
                 let updated_doc = Document {
