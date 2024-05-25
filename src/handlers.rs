@@ -58,8 +58,18 @@ pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, 
     }
 }
 
-pub async fn register(auth_data: web::Json<AuthData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
+pub async fn register(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
     let mut user_manager = user_manager.lock().unwrap();
-    user_manager.register(auth_data.username.clone(), auth_data.password.clone());
-    HttpResponse::Ok().body("User registered")
+    if user_manager.user_exists(&auth_data.email) || db.get_user(&auth_data.email).await.is_ok() {
+        return HttpResponse::Conflict().body("User already exists");
+    }
+    let user = user_manager.register(auth_data.email.clone(), auth_data.password.clone());
+    match db.put_user(user).await {
+        Ok(_) => HttpResponse::Ok().json("User registered successfully"),
+        Err(e) => {
+            user_manager.remove_user(&auth_data.email);
+            println!("Error: {:?}", e);
+            HttpResponse::InternalServerError().body("Internal Server Error")
+        }
+    }
 }
