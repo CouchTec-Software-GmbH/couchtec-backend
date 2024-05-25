@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use sha2::{Sha256, Digest};
 use hex;
@@ -64,15 +65,15 @@ impl UserManager {
     pub fn get_user(&self, email: &str) -> Option<&User> {
         self.users_cache.get(email)
     }
+    pub fn sign_in(&mut self, password: String, user: User) -> Result<Uuid, &'static str> {
+        let hashed = self.hash_password(password, user.salt.clone());
 
-            if hashed == user.hashed {
-                let session_id = Uuid::new_v4();
-                return Ok(session_id);
-            } else {
-                return Err("Password is incorrect");
-            }
-        } else {
-            return Err("User not found");
+        if hashed != user.hashed {
+            return Err("Password is incorrect");
         }
+        let session_id = Uuid::new_v4();
+        self.session_cache.insert(session_id, user.email.clone());
+        return Ok(session_id);
     }
+
 }
