@@ -23,6 +23,11 @@ impl UserManager {
             session_cache: HashMap::new(),
         }
     }
+    }
+    pub fn remove_user(&mut self, email: &str) {
+        self.users_cache.remove(email);
+    }
+
     pub fn insert_user(&mut self, user: User) {
         self.users_cache.insert(user.email.clone(), user);
     }
