@@ -10,6 +10,7 @@ pub struct User {
     pub email: String,
     pub hashed: String,
     pub salt: String,
+    pub uuids: Vec<String>
 }
 
 pub struct UserManager {
@@ -49,6 +50,7 @@ impl UserManager {
             email: email.clone(),
             hashed,
             salt,
+            uuids: Vec::new(),
         };
         self.users_cache.insert(email, user.clone());
         user
