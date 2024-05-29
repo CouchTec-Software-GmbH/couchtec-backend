@@ -84,3 +84,20 @@ pub async fn get_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>) -> im
     }
 }
 
+pub async fn put_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<Vec<String>>) -> impl Responder {
+    let mut user = match db.get_user(&id).await {
+        Ok(user) => user,
+        Err(e) => {
+            println!("Error: {:?}", e);
+            return HttpResponse::NotFound().body(format!("User with email {} not found", id));
+        }
+    };
+    user.uuids = data.into_inner();
+    match db.put_user(user).await {
+        Ok(_) => HttpResponse::Ok().json("UUIDs updated successfully"),
+        Err(e) => {
+            println!("Error: {:?}", e);
+            HttpResponse::InternalServerError().body("Internal Server Error")
+        }
+    }
+}
