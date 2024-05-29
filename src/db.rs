@@ -20,11 +20,23 @@ pub struct NewDocument {
     pub data: Value,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserPayload {
+    pub email: String,
+    pub hashed: String,
+    pub salt: String,
+    pub uuids: Vec<String>,
+    #[serde(rename = "_rev")]
+    rev: String,
+}
+
 pub struct CouchDB {
     client: Client,
     url: String,
     auth: (String, String)
 }
+
+
 
 impl CouchDB {
     pub fn new(url: String, username: String, password: String) -> Self {
@@ -93,7 +105,6 @@ impl CouchDB {
             Err(e) => return Err(e),
         }
     }
-
 
 
     pub async fn put_user(&self, user: User) -> Result<User , reqwest::Error> {
