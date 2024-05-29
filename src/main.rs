@@ -20,10 +20,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(couchdb.clone()))
             .app_data(web::Data::new(user_manager.clone()))
-            .route("/projects/{id}", web::get().to(handlers::get_document))
-            .route("/projects/{id}", web::put().to(handlers::put_document))
             .route("/login", web::post().to(handlers::login))
             .route("/register", web::post().to(handlers::register))
+            .route("/{id}", web::get().to(handlers::get_document))
+            .route("/{id}", web::put().to(handlers::put_document))
     })
     .bind(("127.0.0.1", 3000))?
     .run()
