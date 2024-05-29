@@ -109,16 +109,19 @@ impl CouchDB {
 
     pub async fn put_user(&self, user: User) -> Result<User , reqwest::Error> {
         let url = format!("{}/users/{}", self.url, user.email);
+
+    pub async fn get_user_payload(&self, email: &str) -> Result<UserPayload, reqwest::Error> {
+        let url = format!("{}/users/{}", self.url, email);
         let response = self
             .client
-            .put(&url)
+            .get(&url)
             .header("Content-Type", "application/json")
             .basic_auth(&self.auth.0, Some(&self.auth.1))
-            .json(&user)
             .send()
             .await?;
 
-        let _response = response.error_for_status()?;
+        let user: UserPayload = response.json().await?;
+        println!("User: {:?}", user);
         Ok(user)
     }
 
