@@ -46,11 +46,11 @@ pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, 
         }
     };
     if user_data.is_none() {
-        return HttpResponse::Unauthorized().body("Login failed: User not found");
+        return HttpResponse::NotFound().body("Login failed: User not found");
     }
     let user_data = user_data.unwrap();
     match user_manager.sign_in(auth_data.password.clone(), user_data) {
-        Ok(session_id) => HttpResponse::Ok().json(format!("Login successful. Session ID: {}", session_id)),
+        Ok(session_id) => HttpResponse::Ok().json(format!("{}", session_id)),
         Err(e) => {
             println!("Error: {:?}", e);
             HttpResponse::Unauthorized().body(format!("Login failed: {}", e))
