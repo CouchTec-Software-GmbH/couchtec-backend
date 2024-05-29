@@ -109,6 +109,51 @@ impl CouchDB {
 
     pub async fn put_user(&self, user: User) -> Result<User , reqwest::Error> {
         let url = format!("{}/users/{}", self.url, user.email);
+        match self.get_user_payload(&user.email).await {
+            Ok(user_payload) => {
+                let updated_user = UserPayload {
+                    email: user.email.clone(),
+                    hashed: user_payload.hashed.clone(),
+                    salt: user_payload.salt.clone(),
+                    uuids: user.uuids.clone(),
+                    rev: user_payload.rev.clone(),
+                };
+                println!("Updated user: {:?}", updated_user);
+                let response = self
+                    .client
+                    .put(&url)
+                    .header("Content-Type", "application/json")
+                    .basic_auth(&self.auth.0, Some(&self.auth.1))
+                    .json(&updated_user)
+                    .send()
+                    .await?;
+
+                let _response = response.error_for_status()?;
+                Ok(user)
+            }
+        Err(_)  => {
+                println!("404");
+            let new_user = User {
+                email: user.email.clone(),
+                hashed: user.hashed.clone(),
+                salt: user.salt.clone(),
+                uuids: user.uuids.clone(),
+            };
+            let response = self
+                .client
+                .put(&url)
+                .header("Content-Type", "application/json")
+                .basic_auth(&self.auth.0, Some(&self.auth.1))
+                .json(&new_user)
+                .send()
+                .await?;
+
+            let _response = response.error_for_status()?;
+            let user: User = self.get_user(&user.email).await?;
+            Ok(user)
+        }
+        }
+    }
 
     pub async fn get_user_payload(&self, email: &str) -> Result<UserPayload, reqwest::Error> {
         let url = format!("{}/users/{}", self.url, email);
