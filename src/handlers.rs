@@ -73,3 +73,14 @@ pub async fn register(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData
         }
     }
 }
+
+pub async fn get_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>) -> impl Responder {
+    match db.get_user(&id).await {
+        Ok(user) => HttpResponse::Ok().json(user.uuids),
+        Err(e) => {
+            println!("Error: {:?}", e);
+            HttpResponse::NotFound().body(format!("User with email {} not found", id))
+        }
+    }
+}
+
