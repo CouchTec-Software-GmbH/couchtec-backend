@@ -16,6 +16,7 @@ pub struct User {
 pub struct UserManager {
     users_cache: HashMap<String, User>,
     session_cache: HashMap<Uuid, String>,
+    one_time_codes: HashMap<String, String>,
 }
 
 impl UserManager {
@@ -23,6 +24,7 @@ impl UserManager {
         UserManager {
             users_cache: HashMap::new(),
             session_cache: HashMap::new(),
+            one_time_codes: HashMap::new(),
         }
     }
     pub fn user_exists(&self, email: &str) -> bool {
