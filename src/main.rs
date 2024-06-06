@@ -42,6 +42,7 @@ async fn main() -> std::io::Result<()> {
             .route("/{id}", web::put().to(handlers::put_document))
             .route("/login", web::post().to(handlers::login))
             .route("/register", web::post().to(handlers::register))
+            .route("/pre-register", web::post().to(handlers::pre_register))
             .route("/uuids/{id}", web::get().to(handlers::get_uuids))
             .route("/uuids/{id}", web::put().to(handlers::put_uuids))
     })
