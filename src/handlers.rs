@@ -34,6 +34,12 @@ pub struct AuthData {
 pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
     let mut user_manager = user_manager.lock().unwrap();
 #[derive(Deserialize)]
+#[derive(Deserialize)]
+pub struct ResetData {
+    email: String,
+}
+
+#[derive(Deserialize)]
 pub struct ResetPasswordData {
     uuid: String,
     password: String,
@@ -108,6 +114,32 @@ pub async fn put_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
         }
     }
 }
+pub async fn send_reset_email(data: web::Json<ResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
+    let url = "http://localhost";
+    println!("Reset email request for: {}", data.email);
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+    };
+    if !(user_manager.user_exists(&data.email) || db.get_user(&data.email).await.is_ok()) {
+        return HttpResponse::Conflict().body("User does not exists");
+    }
+    let onetimepassword = user_manager.insert_reset_email_code(data.email.clone());
+    println!("Reset code: {}", onetimepassword);
+    let subject = "Password Reset";
+    let body = format!("Click this link to reset your password: {}/auth?code={}", url, onetimepassword);
+    match email_manager.send_email(&data.email, subject, &body) {
+        Ok(_) => {
+            println!("Reset email sent successfully");
+            HttpResponse::Ok().body("Reset email sent successfully")
+        },
+        Err(e) => {
+            println!("Error: {:?}", e);
+            HttpResponse::InternalServerError().body("Internal Server Error")
+        }
+    }
+}
+
 pub async fn reset_password(data: web::Json<ResetPasswordData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
     let mut user_manager = match user_manager.lock() {
         Ok(manager) => manager,
