@@ -23,6 +23,7 @@ pub struct NewDocument {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserPayload {
     pub email: String,
+    pub newsletter: bool,
     pub hashed: String,
     pub salt: String,
     pub uuids: Vec<String>,
@@ -113,6 +114,7 @@ impl CouchDB {
             Ok(user_payload) => {
                 let updated_user = UserPayload {
                     email: user.email.clone(),
+                    newsletter: user.newsletter.clone(),
                     hashed: user_payload.hashed.clone(),
                     salt: user_payload.salt.clone(),
                     uuids: user.uuids.clone(),
@@ -135,6 +137,7 @@ impl CouchDB {
                 println!("404");
             let new_user = User {
                 email: user.email.clone(),
+                newsletter: user.newsletter.clone(),
                 hashed: user.hashed.clone(),
                 salt: user.salt.clone(),
                 uuids: user.uuids.clone(),
