@@ -45,12 +45,12 @@ pub struct RegisterData{
 }
 
 #[derive(Deserialize)]
-pub struct ResetData {
+pub struct PreResetData {
     email: String,
 }
 
 #[derive(Deserialize)]
-pub struct ResetPasswordData {
+pub struct ResetData {
     uuid: String,
     password: String,
 }
@@ -157,7 +157,7 @@ pub async fn put_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
     }
 }
 
-pub async fn send_reset_email(data: web::Json<ResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
+pub async fn send_reset_email(data: web::Json<PreResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
     let url = "http://localhost";
     println!("Reset email request for: {}", data.email);
     let mut user_manager = match user_manager.lock() {
@@ -183,7 +183,7 @@ pub async fn send_reset_email(data: web::Json<ResetData>, user_manager: web::Dat
     }
 }
 
-pub async fn reset_password(data: web::Json<ResetPasswordData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
+pub async fn reset_password(data: web::Json<ResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
     let mut user_manager = match user_manager.lock() {
         Ok(manager) => manager,
         Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
