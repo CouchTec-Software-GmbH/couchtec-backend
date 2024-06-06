@@ -41,6 +41,11 @@ pub struct PreRegisterData {
 }
 
 #[derive(Deserialize)]
+pub struct RegisterData{
+    uuid: String,
+}
+
+#[derive(Deserialize)]
 pub struct ResetData {
     email: String,
 }
@@ -77,8 +82,24 @@ pub struct ResetPasswordData {
     }
 }
 
-pub async fn register(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
-    let mut user_manager = user_manager.lock().unwrap();
+pub async fn register(auth_data: web::Json<RegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+    };
+    if let Ok(user) = user_manager.register(auth_data.uuid.clone()) {
+        match db.put_user(user.clone()).await {
+            Ok(_) => return HttpResponse::Ok().json("User registered successfully"),
+            Err(e) => {
+                user_manager.remove_user(&user.email);
+                println!("Error: {:?}", e);
+                return HttpResponse::InternalServerError().body("Internal Server Error");
+            }
+        }
+    }
+    HttpResponse::NotFound().body(format!("Internal Server Error"))
+}
+
 pub async fn pre_register(auth_data: web::Json<PreRegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>, email_manager: web::Data<Arc<EmailManager>>) -> impl Responder {
     println!("Pre register");
     let url = "http://localhost";
