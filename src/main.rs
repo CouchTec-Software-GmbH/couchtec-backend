@@ -1,18 +1,22 @@
 mod db;
 mod handlers;
 mod auth;
+mod email;
 
 use actix_web::{web, App, HttpServer};
+use email::EmailManager;
 use std::sync::{Arc, Mutex};
 use db::CouchDB;
+use auth::UserManager;
+use std::env;
 
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let db_url = String::from("https://couchdb-app-service.azurewebsites.net");
-    let db_username = String::from("admin");
-    let db_password = String::from("8RzuxhQ7");
     dotenv::dotenv().ok();
+    let db_url = env::var("DB_URL").expect("DB URL must be set (e.g: https://couchdb-app-service.azurewebsites.net)");
+    let db_username = env::var("DB_USERNAME").expect("DB Username must be set");
+    let db_password = env::var("DB_PASSWORD").expect("DB Password must be set");
     let smtp_email = env::var("SMTP_EMAIL").expect("SMTP_EMAIL must be set");
     let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD must be set");
 
