@@ -34,6 +34,12 @@ pub struct AuthData {
 pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
     let mut user_manager = user_manager.lock().unwrap();
 #[derive(Deserialize)]
+pub struct PreRegisterData {
+    email: String,
+    password: String,
+    newsletter: bool,
+}
+
 #[derive(Deserialize)]
 pub struct ResetData {
     email: String,
@@ -73,16 +79,27 @@ pub struct ResetPasswordData {
 
 pub async fn register(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
     let mut user_manager = user_manager.lock().unwrap();
+pub async fn pre_register(auth_data: web::Json<PreRegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>, email_manager: web::Data<Arc<EmailManager>>) -> impl Responder {
+    println!("Pre register");
+    let url = "http://localhost";
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) =>  return HttpResponse::InternalServerError().body("Internal Server Error")
+    };
     if user_manager.user_exists(&auth_data.email) || db.get_user(&auth_data.email).await.is_ok() {
         return HttpResponse::Conflict().body("User already exists");
     }
-    let user = user_manager.register(auth_data.email.clone(), auth_data.password.clone());
-    match db.put_user(user).await {
-        Ok(_) => HttpResponse::Ok().json("User registered successfully"),
-        Err(e) => {
-            user_manager.remove_user(&auth_data.email);
-            println!("Error: {:?}", e);
-            HttpResponse::InternalServerError().body("Internal Server Error")
+
+    let user_uuid = user_manager.pre_register(auth_data.email.clone(), auth_data.password.clone(), auth_data.newsletter.clone());
+    let subject = "Activate Account";
+    let body = format!("Click this link to activate your account: {}/auth?activate={}", url, user_uuid);
+    println!("{}", &auth_data.email);
+    match email_manager.send_email(&auth_data.email, subject, &body) {
+        Ok(_) => {
+            return HttpResponse::Ok().body("Activate email sent successfully");
+        },
+        Err(_) => {
+            return HttpResponse::InternalServerError().body("Internal Server Error");
         }
     }
 }
@@ -114,6 +131,7 @@ pub async fn put_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
         }
     }
 }
+
 pub async fn send_reset_email(data: web::Json<ResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
     let url = "http://localhost";
     println!("Reset email request for: {}", data.email);
