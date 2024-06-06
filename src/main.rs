@@ -14,14 +14,18 @@ use std::env;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
+    env_logger::init();
+
+        
     let db_url = env::var("DB_URL").expect("DB URL must be set (e.g: https://couchdb-app-service.azurewebsites.net)");
     let db_username = env::var("DB_USERNAME").expect("DB Username must be set");
     let db_password = env::var("DB_PASSWORD").expect("DB Password must be set");
+
     let smtp_email = env::var("SMTP_EMAIL").expect("SMTP_EMAIL must be set");
     let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD must be set");
 
     let couchdb = Arc::new(CouchDB::new(db_url, db_username, db_password));
-    let user_manager = Arc::new(Mutex::new(auth::UserManager::new()));
+    let user_manager = Arc::new(Mutex::new(UserManager::new()));
     let email_manager = match EmailManager::new(&smtp_email, &smtp_password) {
         Ok(manager) => Arc::new(manager),
         Err(e) => {
