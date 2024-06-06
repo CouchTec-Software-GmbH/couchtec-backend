@@ -45,6 +45,7 @@ async fn main() -> std::io::Result<()> {
             .route("/pre-register", web::post().to(handlers::pre_register))
             .route("/uuids/{id}", web::get().to(handlers::get_uuids))
             .route("/uuids/{id}", web::put().to(handlers::put_uuids))
+            .route("/pre-reset", web::post().to(handlers::send_reset_email))
     })
     .bind(("127.0.0.1", 3000))?
     .run()
