@@ -8,6 +8,7 @@ use hex;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub email: String,
+    pub newsletter: bool,
     pub hashed: String,
     pub salt: String,
     pub uuids: Vec<String>
@@ -17,6 +18,7 @@ pub struct UserManager {
     users_cache: HashMap<String, User>,
     session_cache: HashMap<Uuid, String>,
     one_time_codes: HashMap<String, String>,
+    pre_registered: HashMap<String, User>
 }
 
 impl UserManager {
@@ -25,6 +27,7 @@ impl UserManager {
             users_cache: HashMap::new(),
             session_cache: HashMap::new(),
             one_time_codes: HashMap::new(),
+            pre_registered: HashMap::new()
         }
     }
     pub fn user_exists(&self, email: &str) -> bool {
@@ -38,7 +41,14 @@ impl UserManager {
         self.users_cache.insert(user.email.clone(), user);
     }
 
-    pub fn register(&mut self, email: String, password: String) -> User {
+    pub fn register(&mut self, uuid: String) -> Result<User, &str> {
+        if let Some(user) = self.pre_registered.get(&uuid) {
+            self.users_cache.insert(user.clone().email, user.clone());
+            return Ok(user.clone());
+        }
+        Err("User not found")
+    }
+
     pub fn pre_register(&mut self, email: String, password: String, newsletter: bool) -> String {
         let salt = Uuid::new_v4().to_string();
         let salted = format!("{}{}", password, salt);
