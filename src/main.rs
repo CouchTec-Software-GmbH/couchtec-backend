@@ -32,6 +32,7 @@ async fn main() -> std::io::Result<()> {
             eprintln!("Failed to create EmailManager: {:?}", e);
             std::process::exit(1);
         }
+    };
 
     HttpServer::new(move || {
         App::new()
@@ -46,6 +47,7 @@ async fn main() -> std::io::Result<()> {
             .route("/uuids/{id}", web::get().to(handlers::get_uuids))
             .route("/uuids/{id}", web::put().to(handlers::put_uuids))
             .route("/pre-reset", web::post().to(handlers::send_reset_email))
+            .route("/reset", web::post().to(handlers::reset_password))
     })
     .bind(("127.0.0.1", 3000))?
     .run()
