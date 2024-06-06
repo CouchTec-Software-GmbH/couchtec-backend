@@ -91,4 +91,24 @@ impl UserManager {
         self.one_time_codes.get(uuid).cloned()
     }
 
+    pub fn change_password(&mut self, email: &str, password: &str, newsletter: bool) -> User {
+        let salt = Uuid::new_v4().to_string();
+        let salted = format!("{}{}", password, salt);
+
+        let mut hasher = Sha256::new();
+        hasher.update(salted.as_bytes());
+        let result = hasher.finalize();
+
+        let hashed = hex::encode(result);
+        let user = User {
+            email: email.to_string(),
+            newsletter,
+            hashed,
+            salt,
+            uuids: Vec::new(),
+        };
+        self.users_cache.insert(email.to_string(), user.clone());
+        user
+    }
 }
+
