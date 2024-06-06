@@ -87,4 +87,8 @@ impl UserManager {
     }
 
 
+    pub fn get_email_from_code(&self, uuid: &str) -> Option<String> {
+        self.one_time_codes.get(uuid).cloned()
+    }
+
 }
