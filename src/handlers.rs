@@ -33,6 +33,13 @@ pub struct AuthData {
 
 pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<AuthData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
     let mut user_manager = user_manager.lock().unwrap();
+#[derive(Deserialize)]
+pub struct ResetPasswordData {
+    uuid: String,
+    password: String,
+}
+
+
     let user_data = {
         let user = user_manager.get_user(&auth_data.email);
         if user.is_none() {
@@ -100,4 +107,34 @@ pub async fn put_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
             HttpResponse::InternalServerError().body("Internal Server Error")
         }
     }
+}
+pub async fn reset_password(data: web::Json<ResetPasswordData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+    };
+       
+    // Does code exist?
+    if let Some(email) = user_manager.get_email_from_code(&data.uuid) {
+        // Does User exist?
+        if !(user_manager.user_exists(&email) || db.get_user(&email).await.is_ok()) {
+            return HttpResponse::Conflict().body("User does not exists");
+        }
+        let newsletter = match db.get_user(&email).await {
+            Ok(user) => user.newsletter,
+            Err(_) => return HttpResponse::NotFound().body("User not found"),
+        };
+        // Get new user && insert into cache
+        let user = user_manager.change_password(&email, &data.password, newsletter);
+        // Put new user into db
+        return match db.put_user(user.clone()).await {
+            Ok(_) => HttpResponse::Ok().body("Password changed successfully"),
+            Err(e) => {
+                user_manager.remove_user(&user.email);
+                println!("Error {:?}", e);
+                HttpResponse::InternalServerError().body("Internal Server Error")
+            }
+        }
+    }
+    HttpResponse::NotFound().body("No email found for this uuid")
 }
