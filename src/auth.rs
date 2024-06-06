@@ -80,4 +80,11 @@ impl UserManager {
         return Ok(session_id);
     }
 
+    pub fn insert_reset_email_code(&mut self, email: String) -> String {
+        let one_time_code = Uuid::new_v4().to_string();
+        self.one_time_codes.insert(one_time_code.clone(), email.clone());
+        one_time_code
+    }
+
+
 }
