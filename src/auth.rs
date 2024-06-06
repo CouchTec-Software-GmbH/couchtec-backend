@@ -39,6 +39,7 @@ impl UserManager {
     }
 
     pub fn register(&mut self, email: String, password: String) -> User {
+    pub fn pre_register(&mut self, email: String, password: String, newsletter: bool) -> String {
         let salt = Uuid::new_v4().to_string();
         let salted = format!("{}{}", password, salt);
 
@@ -50,13 +51,17 @@ impl UserManager {
 
         let user = User {
             email: email.clone(),
+            newsletter,
             hashed,
             salt,
             uuids: Vec::new(),
         };
-        self.users_cache.insert(email, user.clone());
-        user
+        let uuid = Uuid::new_v4().to_string();
+        self.pre_registered.insert(uuid.clone(), user);
+        uuid
     }
+
+
 
     pub fn hash_password(&self, password: String, salt: String) -> String {
         let salted = format!("{}{}", password, salt);
