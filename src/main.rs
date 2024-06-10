@@ -46,6 +46,7 @@ async fn main() -> std::io::Result<()> {
             .route("/pre-register", web::post().to(handlers::pre_register))
             .route("/uuids/{id}", web::get().to(handlers::get_uuids))
             .route("/uuids/{id}", web::post().to(handlers::post_uuid))
+            // .route("/uuids/{id}", web::delete().to(handlers::delete_uuid))
             .route("/pre-reset", web::post().to(handlers::send_reset_email))
             .route("/reset", web::post().to(handlers::reset_password))
     })

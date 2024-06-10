@@ -93,6 +93,7 @@ pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<LoginData>,
 }
 
 pub async fn register(auth_data: web::Json<RegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
+    println!("Registered");
     let mut user_manager = match user_manager.lock() {
         Ok(manager) => manager,
         Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
@@ -162,6 +163,24 @@ pub async fn post_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
         }
     }
 }
+
+// pub async fn delete_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<AddUuid>) -> impl Responder {
+//     let mut user = match db.get_user(&id).await {
+//         Ok(user) => user,
+//         Err(e) => {
+//             println!("Error: {:?}", e);
+//             return HttpResponse::NotFound().body(format!("User with email {} not found", id));
+//         }
+//     };
+//     // user.uuids.retain(|)
+//     match db.put_user(user).await {
+//         Ok(_) => HttpResponse::Ok().json("UUIDs updated successfully"),
+//         Err(e) => {
+//             println!("Error: {:?}", e);
+//             HttpResponse::InternalServerError().body("Internal Server Error")
+//         }
+//     }
+// }
 
 pub async fn send_reset_email(data: web::Json<PreResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
     let url = "http://localhost";
