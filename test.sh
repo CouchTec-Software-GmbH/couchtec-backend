@@ -1,4 +1,4 @@
-curl -X GET http://localhost:3000/projects/20 \
+curl -X GET http://localhost/api/op1 \
 -H "Content-Type: application/json"
 
 curl -X PUT http://localhost:3000/projects/20 \
@@ -59,4 +59,9 @@ curl -X POST http://localhost:80/reset \
   "email": "linus@couchtec.com"
 }'
 
+curl -X POST http://localhost/api/uuids/linus@couchtec.com \
+-H "Content-Type: application/json" \
+-d '{
+  "uuid": "eyy"
+}'
 
