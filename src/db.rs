@@ -57,14 +57,19 @@ impl CouchDB {
             .basic_auth(&self.auth.0, Some(&self.auth.1))
             .send()
         .await?;
-
-
         let response = response.error_for_status()?;
         let document: Document = response.json().await?;
         Ok(document)
     }
 
-    pub async fn put_document(&self, id: &str, data: Value) -> Result<Document, reqwest::Error> {
+    pub async fn get_document_data(&self, id: &str) -> Result<Value, reqwest::Error> {
+        match self.get_document(id).await {
+            Ok(doc) => Ok(doc.data),
+            Err(e) => Err(e)
+        }
+    }
+
+    pub async fn put_document(&self, id: &str, data: Value) -> Result<Value, reqwest::Error> {
         let url = format!("{}/projects/{}", self.url, id);
         match self.get_document(id).await {
             Ok(doc) => {
@@ -83,7 +88,7 @@ impl CouchDB {
                     .await?;
 
                 let _response = response.error_for_status()?;
-                Ok(updated_doc)
+                Ok(updated_doc.data)
             }
             Err(e) if e.status() == Some(reqwest::StatusCode::NOT_FOUND) => {
                 let new_doc = NewDocument {
@@ -101,7 +106,7 @@ impl CouchDB {
 
                 let _response = response.error_for_status()?;
                 let document: Document = self.get_document(id).await?;
-                Ok(document)
+                Ok(document.data)
             }
             Err(e) => return Err(e),
         }
