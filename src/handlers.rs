@@ -7,7 +7,8 @@ use crate::email::EmailManager;
 use serde::Deserialize;
 
 pub async fn get_document(db: web::Data<Arc<CouchDB>>, id: web::Path<String>) -> impl Responder {
-    match db.get_document(&id).await {
+    println!("Get_document handler");
+    match db.get_document_data(&id).await {
         Ok(doc) => HttpResponse::Ok().json(doc),
         Err(e) => {
             println!("Error: {:?}", e);
@@ -53,6 +54,11 @@ pub struct PreResetData {
 pub struct ResetData {
     uuid: String,
     password: String,
+}
+
+#[derive(Deserialize)]
+pub struct AddUuid {
+    uuid: String
 }
 
 
@@ -139,7 +145,7 @@ pub async fn get_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>) -> im
     }
 }
 
-pub async fn put_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<Vec<String>>) -> impl Responder {
+pub async fn post_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<AddUuid>) -> impl Responder {
     let mut user = match db.get_user(&id).await {
         Ok(user) => user,
         Err(e) => {
@@ -147,7 +153,7 @@ pub async fn put_uuids(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
             return HttpResponse::NotFound().body(format!("User with email {} not found", id));
         }
     };
-    user.uuids = data.into_inner();
+    user.uuids.push(data.uuid.clone());
     match db.put_user(user).await {
         Ok(_) => HttpResponse::Ok().json("UUIDs updated successfully"),
         Err(e) => {
