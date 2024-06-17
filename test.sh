@@ -1,5 +1,7 @@
-curl -X GET http://localhost/api/op1 \
--H "Content-Type: application/json"
+curl -X GET http://localhost/api/bf8160da-0639-48ad-9138-bcb988199a66 \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer a2838716-7f7d-4433-a1ff-6ffe8a461a29"
+
 
 curl -X PUT http://localhost:3000/projects/20 \
 -H "Content-Type: application/json" \
@@ -36,7 +38,7 @@ curl -X POST http://localhost/api/login \
 -H "Content-Type: application/json" \
 -d '{
   "email": "linus@couchtec.com",
-  "password": "23456"
+  "password": "lol"
 }'
 
 curl -X POST http://localhost/api/pre-reset \
