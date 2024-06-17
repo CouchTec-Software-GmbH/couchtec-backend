@@ -26,6 +26,8 @@ curl -X POST http://localhost/api/register \
   "uuid": "9e1bff29-5772-4a87-86c0-18277344c990"
 }'
 
+curl -X DELETE http://localhost/api/uuids/linus@couchtec.com/lol 
+
 curl -X POST http://localhost/api/login \
 -H "Content-Type: application/json" \
 -d '{
