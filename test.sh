@@ -26,7 +26,11 @@ curl -X POST http://localhost/api/register \
   "uuid": "9e1bff29-5772-4a87-86c0-18277344c990"
 }'
 
+curl -X GET http://localhost:3000/uuids/linus@couchtec.com
+
 curl -X DELETE http://localhost/api/uuids/linus@couchtec.com/lol 
+
+curl -X DELETE http://localhost/api/user/linus@couchtec.com
 
 curl -X POST http://localhost/api/login \
 -H "Content-Type: application/json" \
@@ -67,3 +71,8 @@ curl -X POST http://localhost/api/uuids/linus@couchtec.com \
   "uuid": "eyy"
 }'
 
+curl -X DELETE https://couchdb-app-service.azurewebsites.net/users/Getthemlol@protonmail.com?rev=31-c3eb40d582f71055b36d2b51b7e0fc04 \
+-u "admin:8RzuxhQ7"
+
+curl -X GET https://couchdb-app-service.azurewebsites.net/users/Getthemlol@protonmail.com \
+-u "admin:8RzuxhQ7"
