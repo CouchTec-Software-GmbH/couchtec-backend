@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::auth::User;
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Document {
     #[serde(rename = "_id")]
@@ -191,5 +190,21 @@ impl CouchDB {
         let response = response.error_for_status()?;
         let user: User = response.json().await?;
         Ok(user)
+    }
+
+    pub async fn delete_user(&self, email: &str) -> Result<bool, reqwest::Error> {
+        let user: UserPayload = self.get_user_payload(&email).await?;
+        let rev = user.rev;
+        let url = format!("{}/users/{}?rev={}", self.url, email, rev);
+        let response = self
+            .client
+            .delete(&url)
+            .header("Content-Type", "application/json")
+            .basic_auth(&self.auth.0, Some(&self.auth.1))
+            .send()
+            .await?;
+
+        response.error_for_status()?;
+        Ok(true)
     }
 }
