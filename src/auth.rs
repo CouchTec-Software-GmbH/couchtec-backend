@@ -4,7 +4,6 @@ use uuid::Uuid;
 use sha2::{Sha256, Digest};
 use hex;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub email: String,
@@ -98,6 +97,10 @@ impl UserManager {
         let session_id = Uuid::new_v4();
         self.session_cache.insert(session_id.to_string(), user.email.clone());
         return Ok(session_id);
+    }
+
+    pub fn logout(&mut self, uuid: String) {
+        self.session_cache.retain(|x, _| !x.eq(&uuid));
     }
 
     pub fn insert_reset_email_code(&mut self, email: String) -> String {
