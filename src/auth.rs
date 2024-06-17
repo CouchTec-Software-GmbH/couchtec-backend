@@ -125,5 +125,9 @@ impl UserManager {
         self.users_cache.insert(email.to_string(), user.clone());
         user
     }
+
+    pub fn delete_user(&mut self, email: &str) {
+        self.users_cache.retain(|x, _| !email.eq(x));
+    }
 }
 
