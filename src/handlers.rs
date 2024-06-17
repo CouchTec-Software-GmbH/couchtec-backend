@@ -164,7 +164,8 @@ pub async fn post_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
     }
 }
 
-pub async fn delete_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, uuid: web::Path<String>) -> impl Responder {
+pub async fn delete_uuid(db: web::Data<Arc<CouchDB>>, path: web::Path<(String, String)>) -> impl Responder {
+    let (id, uuid) = path.into_inner();
     let mut user = match db.get_user(&id).await {
         Ok(user) => user,
         Err(e) => {
