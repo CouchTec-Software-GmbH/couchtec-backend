@@ -127,6 +127,25 @@ pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<LoginData>,
     }
 }
 
+pub fn logout(user_manager: web::Data<Arc<Mutex<UserManager>>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
+    let request_context = match utils::get_request_context(req, user_manager.clone()) {
+        Ok(context) => context,
+        Err(e) => return e,
+    };
+    let email = request_context.email;
+    let session_token = request_context.session_token;
+    //Check if correct session token
+    if !email.eq(&id.to_string()) {
+        return HttpResponse::Unauthorized().body("Unauthorized");
+    }
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+    };
+    user_manager.logout(session_token);
+    HttpResponse::Ok().body("Logged out successfully")
+}
+
 pub async fn register(auth_data: web::Json<RegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
     println!("Registered");
     let mut user_manager = match user_manager.lock() {
