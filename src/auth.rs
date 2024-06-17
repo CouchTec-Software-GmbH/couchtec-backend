@@ -16,7 +16,7 @@ pub struct User {
 
 pub struct UserManager {
     users_cache: HashMap<String, User>,
-    session_cache: HashMap<Uuid, String>,
+    session_cache: HashMap<String, String>,
     one_time_codes: HashMap<String, String>,
     pre_registered: HashMap<String, User>
 }
@@ -33,12 +33,22 @@ impl UserManager {
     pub fn user_exists(&self, email: &str) -> bool {
         self.users_cache.contains_key(email)
     }
+
+    pub fn get_user(&self, email: &str) -> Option<&User> {
+        self.users_cache.get(email)
+    }
+
+
     pub fn remove_user(&mut self, email: &str) {
         self.users_cache.remove(email);
     }
 
     pub fn insert_user(&mut self, user: User) {
         self.users_cache.insert(user.email.clone(), user);
+    }
+
+    pub fn get_email_from_session_token(&self, uuid: String) -> Option<String> {
+        return self.session_cache.get(&uuid).cloned();
     }
 
     pub fn register(&mut self, uuid: String) -> Result<User, &str> {
@@ -71,8 +81,6 @@ impl UserManager {
         uuid
     }
 
-
-
     pub fn hash_password(&self, password: String, salt: String) -> String {
         let salted = format!("{}{}", password, salt);
         let mut hasher = Sha256::new();
@@ -81,9 +89,6 @@ impl UserManager {
         hex::encode(result)
     }
 
-    pub fn get_user(&self, email: &str) -> Option<&User> {
-        self.users_cache.get(email)
-    }
     pub fn sign_in(&mut self, password: String, user: User) -> Result<Uuid, &'static str> {
         let hashed = self.hash_password(password, user.salt.clone());
 
@@ -91,7 +96,7 @@ impl UserManager {
             return Err("Password is incorrect");
         }
         let session_id = Uuid::new_v4();
-        self.session_cache.insert(session_id, user.email.clone());
+        self.session_cache.insert(session_id.to_string(), user.email.clone());
         return Ok(session_id);
     }
 
@@ -100,7 +105,6 @@ impl UserManager {
         self.one_time_codes.insert(one_time_code.clone(), email.clone());
         one_time_code
     }
-
 
     pub fn get_email_from_code(&self, uuid: &str) -> Option<String> {
         self.one_time_codes.get(uuid).cloned()
