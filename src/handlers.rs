@@ -164,23 +164,23 @@ pub async fn post_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data:
     }
 }
 
-// pub async fn delete_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<AddUuid>) -> impl Responder {
-//     let mut user = match db.get_user(&id).await {
-//         Ok(user) => user,
-//         Err(e) => {
-//             println!("Error: {:?}", e);
-//             return HttpResponse::NotFound().body(format!("User with email {} not found", id));
-//         }
-//     };
-//     // user.uuids.retain(|)
-//     match db.put_user(user).await {
-//         Ok(_) => HttpResponse::Ok().json("UUIDs updated successfully"),
-//         Err(e) => {
-//             println!("Error: {:?}", e);
-//             HttpResponse::InternalServerError().body("Internal Server Error")
-//         }
-//     }
-// }
+pub async fn delete_uuid(db: web::Data<Arc<CouchDB>>, id: web::Path<String>, uuid: web::Path<String>) -> impl Responder {
+    let mut user = match db.get_user(&id).await {
+        Ok(user) => user,
+        Err(e) => {
+            println!("Error: {:?}", e);
+            return HttpResponse::NotFound().body(format!("User with email {} not found", id));
+        }
+    };
+    user.uuids.retain(|x| !x.eq(&uuid.as_str()));
+    match db.put_user(user).await {
+        Ok(_) => HttpResponse::Ok().json("UUIDs updated successfully"),
+        Err(e) => {
+            println!("Error: {:?}", e);
+            HttpResponse::InternalServerError().body("Internal Server Error")
+        }
+    }
+}
 
 pub async fn send_reset_email(data: web::Json<PreResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
     let url = "http://localhost";
