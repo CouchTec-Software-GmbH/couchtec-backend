@@ -49,6 +49,7 @@ async fn main() -> std::io::Result<()> {
             .route("/uuids/{id}/{uuid}", web::delete().to(handlers::delete_uuid))
             .route("/pre-reset", web::post().to(handlers::send_reset_email))
             .route("/reset", web::post().to(handlers::reset_password))
+            .route("/user/{id}", web::delete().to(handlers::delete_user))
     })
     .bind(("127.0.0.1", 3000))?
     .run()
