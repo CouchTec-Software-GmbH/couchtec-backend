@@ -239,3 +239,19 @@ pub async fn reset_password(data: web::Json<ResetData>, user_manager: web::Data<
     }
     HttpResponse::NotFound().body("No email found for this uuid")
 }
+
+pub async fn delete_user(email: web::Path<String> , user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
+    let user_db_deleted = match db.delete_user(&email.as_str()).await {
+        Ok(_) => true,
+        Err(_) => false
+    };
+    if !user_db_deleted {
+        return HttpResponse::InternalServerError().body("Internal Server Error");
+    }
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+    };
+    user_manager.delete_user(email.as_str());
+    HttpResponse::Ok().body("User deleted successfully")
+}
