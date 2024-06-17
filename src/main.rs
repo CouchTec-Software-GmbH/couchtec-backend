@@ -2,6 +2,7 @@ mod db;
 mod handlers;
 mod auth;
 mod email;
+mod utils;
 
 use actix_web::{web, App, HttpServer};
 use email::EmailManager;
