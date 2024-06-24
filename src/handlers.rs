@@ -44,23 +44,23 @@ pub struct AddUuid {
 
 
 pub async fn get_document(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
-    // Check if valid session token
-    let email = match utils::get_request_context(req, user_manager.clone()) {
-        Ok(context) => context.email,
-        Err(e) => return e,
-    };
-    // Check if correct session token
-    let user_manager = match user_manager.lock() {
-        Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error"),
-    };
-    let uuids = match user_manager.get_user(&email) {
-        Some(user) => &user.uuids,
-        None => return HttpResponse::NotFound().body("User not found"),
-    };
-    if !uuids.contains(&id.to_string()) {
-        return HttpResponse::Unauthorized().body("Unauthorized");
-    }
+    // // Check if valid session token
+    // let email = match utils::get_request_context(req, user_manager.clone()) {
+    //     Ok(context) => context.email,
+    //     Err(e) => return e,
+    // };
+    // // Check if correct session token
+    // let user_manager = match user_manager.lock() {
+    //     Ok(manager) => manager,
+    //     Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error"),
+    // };
+    // let uuids = match user_manager.get_user(&email) {
+    //     Some(user) => &user.uuids,
+    //     None => return HttpResponse::NotFound().body("User not found"),
+    // };
+    // if !uuids.contains(&id.to_string()) {
+    //     return HttpResponse::Unauthorized().body("Unauthorized");
+    // }
     match db.get_document_data(&id).await {
         Ok(doc) => HttpResponse::Ok().json(doc),
         Err(e) => {
@@ -72,22 +72,22 @@ pub async fn get_document(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: 
 
 pub async fn put_document(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<Value>, req: HttpRequest) -> impl Responder {
     // Check if valid session token
-    let email = match utils::get_request_context(req, user_manager.clone()) {
-        Ok(context) => context.email,
-        Err(e) => return e,
-    };
-    // Check if correct session token
-    let user_manager = match user_manager.lock() {
-        Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error"),
-    };
-    let uuids = match user_manager.get_user(&email) {
-        Some(user) => &user.uuids,
-        None => return HttpResponse::NotFound().body("User not found"),
-    };
-    if !uuids.contains(&id.to_string()) {
-        return HttpResponse::Unauthorized().body("Unauthorized");
-    }
+    // let email = match utils::get_request_context(req, user_manager.clone()) {
+    //     Ok(context) => context.email,
+    //     Err(e) => return e,
+    // };
+    // // Check if correct session token
+    // let user_manager = match user_manager.lock() {
+    //     Ok(manager) => manager,
+    //     Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error"),
+    // };
+    // let uuids = match user_manager.get_user(&email) {
+    //     Some(user) => &user.uuids,
+    //     None => return HttpResponse::NotFound().body("User not found"),
+    // };
+    // if !uuids.contains(&id.to_string()) {
+    //     return HttpResponse::Unauthorized().body("Unauthorized");
+    // }
     match db.put_document(&id, data.into_inner()).await {
         Ok(doc) => HttpResponse::Ok().json(doc),
         Err(e) => {
@@ -127,7 +127,7 @@ pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<LoginData>,
     }
 }
 
-pub fn logout(user_manager: web::Data<Arc<Mutex<UserManager>>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
+pub async fn logout(user_manager: web::Data<Arc<Mutex<UserManager>>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
     let request_context = match utils::get_request_context(req, user_manager.clone()) {
         Ok(context) => context,
         Err(e) => return e,
@@ -192,14 +192,14 @@ pub async fn pre_register(auth_data: web::Json<PreRegisterData>, db: web::Data<A
 
 pub async fn get_uuids(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
     // Check if valid session token
-    let email = match utils::get_request_context(req, user_manager.clone()) {
-        Ok(context) => context.email,
-        Err(e) => return e,
-    };
-    //Check if correct session token
-    if !email.eq(&id.to_string()) {
-        return HttpResponse::Unauthorized().body("Unauthorized");
-    }
+    // let email = match utils::get_request_context(req, user_manager.clone()) {
+    //     Ok(context) => context.email,
+    //     Err(e) => return e,
+    // };
+    // //Check if correct session token
+    // if !email.eq(&id.to_string()) {
+    //     return HttpResponse::Unauthorized().body("Unauthorized");
+    // }
     match db.get_user(&id).await {
         Ok(user) => HttpResponse::Ok().json(user.uuids),
         Err(e) => {
@@ -211,14 +211,14 @@ pub async fn get_uuids(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web
 
 pub async fn post_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: HttpRequest, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<AddUuid>) -> impl Responder {
     // Check if valid session token
-    let email = match utils::get_request_context(req, user_manager.clone()) {
-        Ok(context) => context.email,
-        Err(e) => return e,
-    };
-    //Check if correct session token
-    if !email.eq(&id.to_string()) {
-        return HttpResponse::Unauthorized().body("Unauthorized");
-    }
+    // let email = match utils::get_request_context(req, user_manager.clone()) {
+    //     Ok(context) => context.email,
+    //     Err(e) => return e,
+    // };
+    // //Check if correct session token
+    // if !email.eq(&id.to_string()) {
+    //     return HttpResponse::Unauthorized().body("Unauthorized");
+    // }
     let mut user = match db.get_user(&id).await {
         Ok(user) => user,
         Err(e) => {
@@ -239,14 +239,14 @@ pub async fn post_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: Ht
 pub async fn delete_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: HttpRequest, db: web::Data<Arc<CouchDB>>, path: web::Path<(String, String)>) -> impl Responder {
     let (id, uuid) = path.into_inner();
     // Check if valid session token
-    let email = match utils::get_request_context(req, user_manager.clone()) {
-        Ok(context) => context.email,
-        Err(e) => return e,
-    };
-    //Check if correct session token
-    if !email.eq(&id.to_string()) {
-        return HttpResponse::Unauthorized().body("Unauthorized");
-    }
+    // let email = match utils::get_request_context(req, user_manager.clone()) {
+    //     Ok(context) => context.email,
+    //     Err(e) => return e,
+    // };
+    // //Check if correct session token
+    // if !email.eq(&id.to_string()) {
+    //     return HttpResponse::Unauthorized().body("Unauthorized");
+    // }
     let mut user = match db.get_user(&id).await {
         Ok(user) => user,
         Err(e) => {
@@ -266,13 +266,13 @@ pub async fn delete_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: 
 
 pub async fn send_reset_email(data: web::Json<PreResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
     let url = "http://localhost";
-    println!("Reset email request for: {}", data.email);
+    println!("Sending Reset email request for: {}", data.email);
     let mut user_manager = match user_manager.lock() {
         Ok(manager) => manager,
         Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
     };
     if !(user_manager.user_exists(&data.email) || db.get_user(&data.email).await.is_ok()) {
-        return HttpResponse::Conflict().body("User does not exists");
+        return HttpResponse::NotFound().body("User does not exists");
     }
     let onetimepassword = user_manager.insert_reset_email_code(data.email.clone());
     println!("Reset code: {}", onetimepassword);
@@ -323,14 +323,14 @@ pub async fn reset_password(data: web::Json<ResetData>, user_manager: web::Data<
 
 pub async fn delete_user(req: HttpRequest, email: web::Path<String> , user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
     // Check if valid session token
-    let _email = match utils::get_request_context(req, user_manager.clone()) {
-        Ok(context) => context.email,
-        Err(e) => return e,
-    };
-    //Check if correct session token
-    if !_email.eq(&email.to_string()) {
-        return HttpResponse::Unauthorized().body("Unauthorized");
-    }
+    // let _email = match utils::get_request_context(req, user_manager.clone()) {
+    //     Ok(context) => context.email,
+    //     Err(e) => return e,
+    // };
+    // //Check if correct session token
+    // if !_email.eq(&email.to_string()) {
+    //     return HttpResponse::Unauthorized().body("Unauthorized");
+    // }
     let user_db_deleted = match db.delete_user(&email.as_str()).await {
         Ok(_) => true,
         Err(_) => false
