@@ -61,7 +61,7 @@ async fn main() -> std::io::Result<()> {
             .route("/reset", web::post().to(handlers::reset_password))
             .route("/user/{id}", web::delete().to(handlers::delete_user))
     })
-    .bind(("127.0.0.1", 3000))?
+    .bind(("0.0.0.0", 3000))?
     .run()
     .await
 }
