@@ -3,7 +3,7 @@ mod handlers;
 mod auth;
 mod email;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpServer, http::header};
 use actix_cors::Cors;
 use email::EmailManager;
 use std::sync::{Arc, Mutex};
@@ -36,7 +36,15 @@ async fn main() -> std::io::Result<()> {
     };
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:4200")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+            .supports_credentials();
+
+
         App::new()
+            .wrap(cors)
             .app_data(web::Data::new(couchdb.clone()))
             .app_data(web::Data::new(user_manager.clone()))
             .app_data(web::Data::new(email_manager.clone()))
