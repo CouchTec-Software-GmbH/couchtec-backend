@@ -4,6 +4,7 @@ mod auth;
 mod email;
 
 use actix_web::{web, App, HttpServer};
+use actix_cors::Cors;
 use email::EmailManager;
 use std::sync::{Arc, Mutex};
 use db::CouchDB;
