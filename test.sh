@@ -20,6 +20,14 @@ curl -X POST http://localhost/api/pre-register \
   "password": "23456",
   "newsletter": false
 }'
+
+curl -X POST http://4.185.30.170:3000/pre-register \
+-H "Content-Type: application/json" \
+-d '{
+  "email": "linus@couchtec.com",
+  "password": "23456",
+  "newsletter": false
+}'
 curl -X POST http://localhost/api/register \
 -H "Content-Type: application/json" \
 -d '{
