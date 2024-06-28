@@ -4,7 +4,8 @@ mod auth;
 mod email;
 mod utils;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpServer, http::header};
+use actix_cors::Cors;
 use email::EmailManager;
 use std::sync::{Arc, Mutex};
 use db::CouchDB;
@@ -42,7 +43,16 @@ async fn main() -> std::io::Result<()> {
     };
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header()
+            .supports_credentials()
+            .max_age(3600);
+
+
         App::new()
+            .wrap(cors)
             .app_data(web::Data::new(couchdb.clone()))
             .app_data(web::Data::new(user_manager.clone()))
             .app_data(web::Data::new(email_manager.clone()))
@@ -60,7 +70,7 @@ async fn main() -> std::io::Result<()> {
             .route("/reset", web::post().to(handlers::reset_password))
             .route("/user/{id}", web::delete().to(handlers::delete_user))
     })
-    .bind(("127.0.0.1", 3000))?
+    .bind(("0.0.0.0", 3000))?
     .run()
     .await
 }
