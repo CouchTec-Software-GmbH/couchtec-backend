@@ -1,11 +1,12 @@
-use actix_web::{web, HttpResponse, HttpRequest, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use std::sync::{Arc, Mutex};
 use crate::db::CouchDB;
+use crate::utils::{self, ApiResponse};
+use crate::AppConfig;
 use serde_json::Value;
 use crate::auth::UserManager;
 use crate::email::EmailManager;
 use serde::Deserialize;
-use crate::utils;
 
 #[derive(Deserialize)]
 pub struct LoginData {
@@ -41,66 +42,51 @@ pub struct AddUuid {
     uuid: String
 }
 
-
-
-pub async fn get_document(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
-    // // Check if valid session token
-    // let email = match utils::get_request_context(req, user_manager.clone()) {
-    //     Ok(context) => context.email,
-    //     Err(e) => return e,
-    // };
-    // // Check if correct session token
-    // let user_manager = match user_manager.lock() {
-    //     Ok(manager) => manager,
-    //     Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error"),
-    // };
-    // let uuids = match user_manager.get_user(&email) {
-    //     Some(user) => &user.uuids,
-    //     None => return HttpResponse::NotFound().body("User not found"),
-    // };
-    // if !uuids.contains(&id.to_string()) {
-    //     return HttpResponse::Unauthorized().body("Unauthorized");
-    // }
-    match db.get_document_data(&id).await {
-        Ok(doc) => HttpResponse::Ok().json(doc),
-        Err(e) => {
-            println!("Error: {:?}", e);
-            HttpResponse::NotFound().body(format!("Document with id {} not found", id))
-        }
-    }
-}
-
-pub async fn put_document(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<Value>, req: HttpRequest) -> impl Responder {
-    // Check if valid session token
-    // let email = match utils::get_request_context(req, user_manager.clone()) {
-    //     Ok(context) => context.email,
-    //     Err(e) => return e,
-    // };
-    // // Check if correct session token
-    // let user_manager = match user_manager.lock() {
-    //     Ok(manager) => manager,
-    //     Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error"),
-    // };
-    // let uuids = match user_manager.get_user(&email) {
-    //     Some(user) => &user.uuids,
-    //     None => return HttpResponse::NotFound().body("User not found"),
-    // };
-    // if !uuids.contains(&id.to_string()) {
-    //     return HttpResponse::Unauthorized().body("Unauthorized");
-    // }
-    match db.put_document(&id, data.into_inner()).await {
-        Ok(doc) => HttpResponse::Ok().json(doc),
-        Err(e) => {
-            println!("Error: {:?}", e);
-            HttpResponse::InternalServerError().body("Internal Server Error")
-        }
-    }
-}
-
-pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<LoginData>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
+pub async fn pre_register(auth_data: web::Json<PreRegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>, email_manager: web::Data<Arc<EmailManager>>, app_config: web::Data<AppConfig>) -> impl Responder {
+    let url = &app_config.url;
     let mut user_manager = match user_manager.lock() {
         Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+        Err(_) =>  return ApiResponse::InternalServerError.to_response()
+    };
+    if user_manager.user_exists(&auth_data.email) || db.get_user(&auth_data.email).await.is_ok() {
+        return ApiResponse::Conflict.to_response()
+    }
+
+    let user_uuid = user_manager.pre_register(auth_data.email.clone(), auth_data.password.clone(), auth_data.newsletter.clone());
+    let subject = "Activate Account";
+    let body = format!("Click this link to activate your account: {}/auth?activate={}", url, user_uuid);
+    match email_manager.send_email(&auth_data.email, subject, &body) {
+        Ok(_) => {
+            ApiResponse::Ok.to_response()
+        },
+        Err(_) => {
+            ApiResponse::InternalServerError.to_response()
+        }
+    }
+}
+
+pub async fn register(auth_data: web::Json<RegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+    if let Ok(user) = user_manager.register(auth_data.uuid.clone()) {
+        match db.put_user(user.clone()).await {
+            Ok(_) => return ApiResponse::Ok.to_response(),
+            Err(e) => {
+                user_manager.remove_user(&user.email);
+                println!("Error: {:?}", e);
+                return ApiResponse::InternalServerError.to_response()
+            }
+        }
+    }
+    ApiResponse::NotFound.to_response()
+}
+
+pub async fn login(auth_data: web::Json<LoginData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
     };
     let user_data = {
         let user = user_manager.get_user(&auth_data.email);
@@ -116,114 +102,172 @@ pub async fn login(db: web::Data<Arc<CouchDB>>, auth_data: web::Json<LoginData>,
     };
     let user_data = match user_data {
         Some(data) => data,
-        None => return HttpResponse::NotFound().body("Login failed: User not found")
+        None => return ApiResponse::NotFound.to_response()
     };
-    match user_manager.sign_in(auth_data.password.clone(), user_data) {
-        Ok(session_id) => HttpResponse::Ok().json(format!("{}", session_id)),
+    match user_manager.login(auth_data.password.clone(), user_data) {
+        Ok(session_id) => HttpResponse::Ok().json(session_id.to_string()),
         Err(e) => {
             println!("Error: {:?}", e);
-            HttpResponse::Unauthorized().body(format!("Login failed: {}", e))
+            ApiResponse::Unauthorized.to_response()
         }
     }
 }
 
-pub async fn logout(user_manager: web::Data<Arc<Mutex<UserManager>>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
-    let request_context = match utils::get_request_context(req, user_manager.clone()) {
-        Ok(context) => context,
-        Err(e) => return e,
-    };
-    let email = request_context.email;
-    let session_token = request_context.session_token;
-    //Check if correct session token
-    if !email.eq(&id.to_string()) {
-        return HttpResponse::Unauthorized().body("Unauthorized");
-    }
+pub async fn logout(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: HttpRequest) -> impl Responder {
     let mut user_manager = match user_manager.lock() {
-        Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+        Ok(guard) => guard,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
     };
-    user_manager.logout(session_token);
-    HttpResponse::Ok().body("Logged out successfully")
+    
+    // Verify Session Token
+    let token_id = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
+    user_manager.logout(token_id);
+    ApiResponse::Ok.to_response()
 }
 
-pub async fn register(auth_data: web::Json<RegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> impl Responder {
-    println!("Registered");
+pub async fn send_reset_email(data: web::Json<PreResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>>, app_config: web::Data<AppConfig>) -> impl Responder {
+    let url = &app_config.url;
+    println!("Sending Reset email request for: {}", data.email);
     let mut user_manager = match user_manager.lock() {
         Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
+        Err(_) => return ApiResponse::InternalServerError.to_response()
     };
-    if let Ok(user) = user_manager.register(auth_data.uuid.clone()) {
-        match db.put_user(user.clone()).await {
-            Ok(_) => return HttpResponse::Ok().json("User registered successfully"),
+    if !(user_manager.user_exists(&data.email) || db.get_user(&data.email).await.is_ok()) {
+        return ApiResponse::NotFound.to_response()
+    }
+    let onetimepassword = user_manager.insert_reset_email_code(data.email.clone());
+    println!("Reset code: {}", onetimepassword);
+    let subject = "Password Zurücksetzung";
+    let body = format!("Klicken Sie diesen Link um Ihr Password zurückzusetzen: {}/auth?code={}", url, onetimepassword);
+    match email_manager.send_email(&data.email, subject, &body) {
+        Ok(_) => {
+            println!("Reset email sent successfully");
+            ApiResponse::Ok.to_response()
+        },
+        Err(e) => {
+            println!("Error: {:?}", e);
+            ApiResponse::InternalServerError.to_response()
+        }
+    }
+}
+
+pub async fn reset_password(data: web::Json<ResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+       
+    // Does code exist?
+    if let Some(email) = user_manager.get_email_from_code(&data.uuid) {
+        // Does User exist?
+        if !(user_manager.user_exists(&email) || db.get_user(&email).await.is_ok()) {
+            return ApiResponse::NotFound.to_response()
+        }
+        let newsletter = match db.get_user(&email).await {
+            Ok(user) => user.newsletter,
+            Err(_) => return ApiResponse::NotFound.to_response()
+        };
+        // Get new user && insert into cache
+        let user = user_manager.change_password(&email, &data.password, newsletter);
+        // Put new user into db
+        return match db.put_user(user.clone()).await {
+            Ok(_) => ApiResponse::Ok.to_response(),
             Err(e) => {
                 user_manager.remove_user(&user.email);
-                println!("Error: {:?}", e);
-                return HttpResponse::InternalServerError().body("Internal Server Error");
+                println!("Error {:?}", e);
+                ApiResponse::InternalServerError.to_response()
             }
         }
     }
-    HttpResponse::NotFound().body(format!("Internal Server Error"))
+    ApiResponse::NotFound.to_response()
 }
 
-pub async fn pre_register(auth_data: web::Json<PreRegisterData>, db: web::Data<Arc<CouchDB>>, user_manager: web::Data<Arc<Mutex<UserManager>>>, email_manager: web::Data<Arc<EmailManager>>) -> impl Responder {
-    println!("Pre register");
-    let url = "http://localhost";
-    let mut user_manager = match user_manager.lock() {
+pub async fn get_document(id: web::Path<String>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>,  req: HttpRequest) -> impl Responder {
+    let user_manager = match user_manager.lock() {
         Ok(manager) => manager,
-        Err(_) =>  return HttpResponse::InternalServerError().body("Internal Server Error")
+        Err(_) => return ApiResponse::InternalServerError.to_response()
     };
-    if user_manager.user_exists(&auth_data.email) || db.get_user(&auth_data.email).await.is_ok() {
-        return HttpResponse::Conflict().body("User already exists");
-    }
 
-    let user_uuid = user_manager.pre_register(auth_data.email.clone(), auth_data.password.clone(), auth_data.newsletter.clone());
-    let subject = "Activate Account";
-    let body = format!("Click this link to activate your account: {}/auth?activate={}", url, user_uuid);
-    println!("{}", &auth_data.email);
-    match email_manager.send_email(&auth_data.email, subject, &body) {
-        Ok(_) => {
-            return HttpResponse::Ok().body("Activate email sent successfully");
-        },
-        Err(_) => {
-            return HttpResponse::InternalServerError().body("Internal Server Error");
+    // Verify Session Token
+    let _ = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
+    match db.get_document_data(&id).await {
+        Ok(doc) => HttpResponse::Ok().json(doc),
+        Err(e) => {
+            println!("Error: {:?}", e);
+            ApiResponse::NotFound.to_response()
         }
     }
 }
 
-pub async fn get_uuids(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, req: HttpRequest) -> impl Responder {
-    // Check if valid session token
-    // let email = match utils::get_request_context(req, user_manager.clone()) {
-    //     Ok(context) => context.email,
-    //     Err(e) => return e,
-    // };
-    // //Check if correct session token
-    // if !email.eq(&id.to_string()) {
-    //     return HttpResponse::Unauthorized().body("Unauthorized");
-    // }
+pub async fn put_document(id: web::Path<String>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>,  data: web::Json<Value>, req: HttpRequest) -> impl Responder {
+    let user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+
+    // Verify Session Token
+    let _ = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
+    // Put document
+    match db.put_document(&id, data.into_inner()).await {
+        Ok(doc) => HttpResponse::Ok().json(doc),
+        Err(e) => {
+            println!("Error: {:?}", e);
+            ApiResponse::InternalServerError.to_response()
+        }
+    }
+}
+
+
+pub async fn get_uuids(id: web::Path<String>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>,  req: HttpRequest) -> impl Responder {
+    let user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+
+    // Verify Session Token
+    let _ = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
     match db.get_user(&id).await {
         Ok(user) => HttpResponse::Ok().json(user.uuids),
         Err(e) => {
             println!("Error: {:?}", e);
-            HttpResponse::NotFound().body(format!("User with email {} not found", id))
+            ApiResponse::NotFound.to_response()
         }
     }
 }
 
 pub async fn post_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: HttpRequest, db: web::Data<Arc<CouchDB>>, id: web::Path<String>, data: web::Json<AddUuid>) -> impl Responder {
-    // Check if valid session token
-    // let email = match utils::get_request_context(req, user_manager.clone()) {
-    //     Ok(context) => context.email,
-    //     Err(e) => return e,
-    // };
-    // //Check if correct session token
-    // if !email.eq(&id.to_string()) {
-    //     return HttpResponse::Unauthorized().body("Unauthorized");
-    // }
+    let user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+
+    // Verify Session Token
+    let _ = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
     let mut user = match db.get_user(&id).await {
         Ok(user) => user,
         Err(e) => {
             println!("Error: {:?}", e);
-            return HttpResponse::NotFound().body(format!("User with email {} not found", id));
+            return ApiResponse::NotFound.to_response()
         }
     };
     user.uuids.push(data.uuid.clone());
@@ -231,22 +275,24 @@ pub async fn post_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: Ht
         Ok(_) => HttpResponse::Ok().json("UUIDs updated successfully"),
         Err(e) => {
             println!("Error: {:?}", e);
-            HttpResponse::InternalServerError().body("Internal Server Error")
+            ApiResponse::InternalServerError.to_response()
         }
     }
 }
 
-pub async fn delete_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: HttpRequest, db: web::Data<Arc<CouchDB>>, path: web::Path<(String, String)>) -> impl Responder {
+pub async fn delete_uuid(path: web::Path<(String, String)>, user_manager: web::Data<Arc<Mutex<UserManager>>>, req: HttpRequest, db: web::Data<Arc<CouchDB>>) -> impl Responder {
+    let user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+
+    // Verify Session Token
+    let _ = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
     let (id, uuid) = path.into_inner();
-    // Check if valid session token
-    // let email = match utils::get_request_context(req, user_manager.clone()) {
-    //     Ok(context) => context.email,
-    //     Err(e) => return e,
-    // };
-    // //Check if correct session token
-    // if !email.eq(&id.to_string()) {
-    //     return HttpResponse::Unauthorized().body("Unauthorized");
-    // }
     let mut user = match db.get_user(&id).await {
         Ok(user) => user,
         Err(e) => {
@@ -259,89 +305,32 @@ pub async fn delete_uuid(user_manager: web::Data<Arc<Mutex<UserManager>>>, req: 
         Ok(_) => HttpResponse::Ok().json("UUIDs updated successfully"),
         Err(e) => {
             println!("Error: {:?}", e);
-            HttpResponse::InternalServerError().body("Internal Server Error")
+            ApiResponse::InternalServerError.to_response()
         }
     }
-}
-
-pub async fn send_reset_email(data: web::Json<PreResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>, email_manager: web::Data<Arc<EmailManager>> ) -> impl Responder {
-    let url = "http://localhost";
-    println!("Sending Reset email request for: {}", data.email);
-    let mut user_manager = match user_manager.lock() {
-        Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
-    };
-    if !(user_manager.user_exists(&data.email) || db.get_user(&data.email).await.is_ok()) {
-        return HttpResponse::NotFound().body("User does not exists");
-    }
-    let onetimepassword = user_manager.insert_reset_email_code(data.email.clone());
-    println!("Reset code: {}", onetimepassword);
-    let subject = "Password Reset";
-    let body = format!("Click this link to reset your password: {}/auth?code={}", url, onetimepassword);
-    match email_manager.send_email(&data.email, subject, &body) {
-        Ok(_) => {
-            println!("Reset email sent successfully");
-            HttpResponse::Ok().body("Reset email sent successfully")
-        },
-        Err(e) => {
-            println!("Error: {:?}", e);
-            HttpResponse::InternalServerError().body("Internal Server Error")
-        }
-    }
-}
-
-pub async fn reset_password(data: web::Json<ResetData>, user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
-    let mut user_manager = match user_manager.lock() {
-        Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
-    };
-       
-    // Does code exist?
-    if let Some(email) = user_manager.get_email_from_code(&data.uuid) {
-        // Does User exist?
-        if !(user_manager.user_exists(&email) || db.get_user(&email).await.is_ok()) {
-            return HttpResponse::Conflict().body("User does not exists");
-        }
-        let newsletter = match db.get_user(&email).await {
-            Ok(user) => user.newsletter,
-            Err(_) => return HttpResponse::NotFound().body("User not found"),
-        };
-        // Get new user && insert into cache
-        let user = user_manager.change_password(&email, &data.password, newsletter);
-        // Put new user into db
-        return match db.put_user(user.clone()).await {
-            Ok(_) => HttpResponse::Ok().body("Password changed successfully"),
-            Err(e) => {
-                user_manager.remove_user(&user.email);
-                println!("Error {:?}", e);
-                HttpResponse::InternalServerError().body("Internal Server Error")
-            }
-        }
-    }
-    HttpResponse::NotFound().body("No email found for this uuid")
 }
 
 pub async fn delete_user(req: HttpRequest, email: web::Path<String> , user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>) -> impl Responder {
-    // Check if valid session token
-    // let _email = match utils::get_request_context(req, user_manager.clone()) {
-    //     Ok(context) => context.email,
-    //     Err(e) => return e,
-    // };
-    // //Check if correct session token
-    // if !_email.eq(&email.to_string()) {
-    //     return HttpResponse::Unauthorized().body("Unauthorized");
-    // }
+    let mut user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+
+    // Verify Session Token
+    let token_id = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
     let user_db_deleted = match db.delete_user(&email.as_str()).await {
         Ok(_) => true,
         Err(_) => false
     };
     if !user_db_deleted {
-        return HttpResponse::InternalServerError().body("Internal Server Error");
+        return ApiResponse::InternalServerError.to_response();
     }
-    let mut user_manager = match user_manager.lock() {
-        Ok(manager) => manager,
-        Err(_) => return HttpResponse::InternalServerError().body("Internal Server Error")
-    };
+    user_manager.logout(token_id);
     user_manager.delete_user(email.as_str());
+
     HttpResponse::Ok().body("User deleted successfully")
 }

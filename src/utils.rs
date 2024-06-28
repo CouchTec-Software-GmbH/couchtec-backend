@@ -1,6 +1,25 @@
-use actix_web::{web, HttpRequest, HttpResponse};
-use crate::UserManager;
-use std::sync::{Arc, Mutex };
+use actix_web::{HttpRequest, HttpResponse };
+use crate::auth::UserManager;
+
+pub enum ApiResponse {
+    Ok,
+    NotFound,
+    Conflict,
+    Unauthorized,
+    InternalServerError,
+}
+
+impl ApiResponse {
+    pub fn to_response(self) -> HttpResponse {
+        match self {
+            ApiResponse::Ok => HttpResponse::Ok().body("Ok"),
+            ApiResponse::NotFound => HttpResponse::NotFound().body("Not found"),
+            ApiResponse::Conflict => HttpResponse::NotFound().body("Conflict"),
+            ApiResponse::Unauthorized => HttpResponse::Unauthorized().body("Unauthorized"),
+            ApiResponse::InternalServerError => HttpResponse::InternalServerError().body("Internal Server Error")
+        }
+    }
+}
 
 pub fn extract_session_token(req: &HttpRequest) -> Option<String> {
     req.headers().get("Authorization")
@@ -14,27 +33,10 @@ pub fn extract_session_token(req: &HttpRequest) -> Option<String> {
         })
 }
 
-pub struct RequestContext {
-    pub session_token: String,
-    pub email: String,
-}
-
-pub fn get_request_context(req: HttpRequest, user_manager: web::Data<Arc<Mutex<UserManager>>>) -> Result<RequestContext, HttpResponse> {
-    let session_token = match extract_session_token(&req) {
-        Some(token) => token, 
-        None => return Err(HttpResponse::Unauthorized().body("No session token found")),
-    };
-     let user_manager = match user_manager.lock() {
-        Ok(manager) => manager,
-        Err(_) => return Err(HttpResponse::InternalServerError().body("Internal Server Error"))
-    };
-
-    let email = match user_manager.get_email_from_session_token(session_token.clone()) {
-        Some(email) => email,
-        None => return Err(HttpResponse::Unauthorized().body("Session token invalid")),
-    };
-    Ok(RequestContext {
-        session_token,
-        email,
-    })
+pub fn verfiy_session_token(req: &HttpRequest, user_manager: &UserManager) -> Result<String, ApiResponse> {
+    let token_id = extract_session_token(req).ok_or(ApiResponse::Unauthorized)?;
+    if !user_manager.session_token_valid(token_id.clone()) {
+        return Err(ApiResponse::Unauthorized);
+    }
+    Ok(token_id)
 }
