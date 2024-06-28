@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use sha2::{Sha256, Digest};
 use hex;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -15,9 +16,19 @@ pub struct User {
 
 pub struct UserManager {
     users_cache: HashMap<String, User>,
-    session_cache: HashMap<String, String>,
+    session_cache: HashMap<String, SessionToken>,
     one_time_codes: HashMap<String, String>,
     pre_registered: HashMap<String, User>
+}
+
+pub struct SessionToken {
+    token: Uuid,
+    user_id: String,
+    created_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+    last_used: DateTime<Utc>,
+    device_info: String,
+    is_revoked: bool,
 }
 
 impl UserManager {
@@ -37,7 +48,6 @@ impl UserManager {
         self.users_cache.get(email)
     }
 
-
     pub fn remove_user(&mut self, email: &str) {
         self.users_cache.remove(email);
     }
@@ -46,8 +56,11 @@ impl UserManager {
         self.users_cache.insert(user.email.clone(), user);
     }
 
-    pub fn get_email_from_session_token(&self, uuid: String) -> Option<String> {
-        return self.session_cache.get(&uuid).cloned();
+    pub fn session_token_valid(&self, uuid: String) -> bool {
+        match self.session_cache.get(&uuid) {
+            Some(token) => token.is_valid(),
+            None => false
+        }
     }
 
     pub fn register(&mut self, uuid: String) -> Result<User, &str> {
@@ -56,6 +69,13 @@ impl UserManager {
             return Ok(user.clone());
         }
         Err("User not found")
+    }
+
+    pub fn print_out_session_cache(&self) {
+        println!("Session cache:");
+        for uuid in self.session_cache.keys() {
+            println!("{}",uuid);
+        }
     }
 
     pub fn pre_register(&mut self, email: String, password: String, newsletter: bool) -> String {
@@ -88,15 +108,17 @@ impl UserManager {
         hex::encode(result)
     }
 
-    pub fn sign_in(&mut self, password: String, user: User) -> Result<Uuid, &'static str> {
+    pub fn login(&mut self, password: String, user: User) -> Result<Uuid, &'static str> {
         let hashed = self.hash_password(password, user.salt.clone());
 
         if hashed != user.hashed {
             return Err("Password is incorrect");
         }
-        let session_id = Uuid::new_v4();
-        self.session_cache.insert(session_id.to_string(), user.email.clone());
-        return Ok(session_id);
+
+        let session_token = SessionToken::new(user.email, "".to_string());
+        let uuid = session_token.token;
+        self.session_cache.insert(uuid.to_string(), session_token);
+        return Ok(uuid);
     }
 
     pub fn logout(&mut self, uuid: String) {
@@ -135,6 +157,29 @@ impl UserManager {
 
     pub fn delete_user(&mut self, email: &str) {
         self.users_cache.retain(|x, _| !email.eq(x));
+    }
+}
+
+impl SessionToken {
+    fn new(user_id: String, device_info: String) -> Self {
+        let now = Utc::now();
+        SessionToken {
+            token: Uuid::new_v4(),
+            user_id,
+            created_at: now,
+            expires_at: now + chrono::Duration::hours(24),
+            last_used: now,
+            device_info,
+            is_revoked: false,
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.is_revoked && self.expires_at > Utc::now()
+    }
+
+    fn update_last_used(&mut self) {
+        self.last_used = Utc::now();
     }
 }
 

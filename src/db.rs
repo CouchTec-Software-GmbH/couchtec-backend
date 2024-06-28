@@ -124,7 +124,6 @@ impl CouchDB {
                     uuids: user.uuids.clone(),
                     rev: user_payload.rev.clone(),
                 };
-                println!("Updated user: {:?}", updated_user);
                 let response = self
                     .client
                     .put(&url)
