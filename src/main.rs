@@ -3,8 +3,7 @@ mod handlers;
 mod auth;
 mod email;
 
-use actix_web::{web, App, HttpServer, http::header};
-use actix_cors::Cors;
+use actix_web::{web, App, HttpServer};
 use email::EmailManager;
 use std::sync::{Arc, Mutex};
 use db::CouchDB;
@@ -36,16 +35,7 @@ async fn main() -> std::io::Result<()> {
     };
 
     HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_method()
-            .allow_any_header()
-            .supports_credentials()
-            .max_age(3600);
-
-
         App::new()
-            .wrap(cors)
             .app_data(web::Data::new(couchdb.clone()))
             .app_data(web::Data::new(user_manager.clone()))
             .app_data(web::Data::new(email_manager.clone()))
