@@ -5,6 +5,8 @@ use sha2::{Sha256, Digest};
 use hex;
 use chrono::{DateTime, Utc};
 
+use crate::handlers::delete_user;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub email: String,
@@ -151,6 +153,7 @@ impl UserManager {
             salt,
             uuids: Vec::new(),
         };
+        // self.delete_user(&email);
         self.users_cache.insert(email.to_string(), user.clone());
         user
     }

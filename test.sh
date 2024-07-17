@@ -17,10 +17,10 @@ curl -X POST http://localhost/api/login \
 -H "Content-Type: application/json" \
 -d '{
   "email": "linus@couchtec.com",
-  "password": "23456"
+  "password": "lol"
 }'
 
-export SESSION_TOKEN="be467d0a-ed69-4c0d-bfe4-dfdacd58923f"
+export SESSION_TOKEN="85b8d056-5b1b-4846-a9ad-fa7da61c78ed"
 
 curl -X DELETE http://localhost/api/user/linus@couchtec.com \
 -H "Content-Type: application/json" \
@@ -47,6 +47,10 @@ curl -X PUT http://localhost/api/20 \
         "interval": 64200
     }
 }'
+
+curl -X GET http://localhost/api/20 \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $SESSION_TOKEN"
 
 curl -X GET http://localhost/api/20 \
 -H "Content-Type: application/json" \
@@ -105,5 +109,5 @@ curl -X POST http://localhost/api/uuids/linus@couchtec.com \
 curl -X DELETE https://couchdb-app-service.azurewebsites.net/users/Getthemlol@protonmail.com?rev=31-c3eb40d582f71055b36d2b51b7e0fc04 \
 -u "admin:8RzuxhQ7"
 
-curl -X GET https://couchdb-app-service.azurewebsites.net/users/Getthemlol@protonmail.com \
+curl -X GET https://couchdb-app-service.azurewebsites.net/users/linus@couchtec.com \
 -u "admin:8RzuxhQ7"

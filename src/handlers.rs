@@ -137,6 +137,7 @@ pub async fn send_reset_email(data: web::Json<PreResetData>, user_manager: web::
         Err(_) => return ApiResponse::InternalServerError.to_response()
     };
     if !(user_manager.user_exists(&data.email) || db.get_user(&data.email).await.is_ok()) {
+        println!("User not found");
         return ApiResponse::NotFound.to_response()
     }
     let onetimepassword = user_manager.insert_reset_email_code(data.email.clone());
@@ -199,6 +200,27 @@ pub async fn get_document(id: web::Path<String>, user_manager: web::Data<Arc<Mut
     };
 
     match db.get_document_data(&id).await {
+        Ok(doc) => HttpResponse::Ok().json(doc),
+        Err(e) => {
+            println!("Error: {:?}", e);
+            ApiResponse::NotFound.to_response()
+        }
+    }
+}
+
+pub async fn get_config(user_manager: web::Data<Arc<Mutex<UserManager>>>, db: web::Data<Arc<CouchDB>>,  req: HttpRequest) -> impl Responder {
+    let user_manager = match user_manager.lock() {
+        Ok(manager) => manager,
+        Err(_) => return ApiResponse::InternalServerError.to_response()
+    };
+
+    // Verify Session Token
+    let _ = match utils::verfiy_session_token(&req, &user_manager) {
+        Ok(token) => token,
+        Err(e) => return e.to_response(),
+    };
+
+    match db.get_config_data().await {
         Ok(doc) => HttpResponse::Ok().json(doc),
         Err(e) => {
             println!("Error: {:?}", e);

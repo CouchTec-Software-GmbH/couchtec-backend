@@ -47,6 +47,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(user_manager.clone()))
             .app_data(web::Data::new(email_manager.clone()))
             .app_data(app_config.clone())
+            .route("/config", web::get().to(handlers::get_config))
             .route("/{id}", web::get().to(handlers::get_document))
             .route("/{id}", web::put().to(handlers::put_document))
             .route("/login", web::post().to(handlers::login))

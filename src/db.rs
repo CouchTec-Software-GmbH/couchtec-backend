@@ -68,6 +68,20 @@ impl CouchDB {
         }
     }
 
+    pub async fn get_config_data(&self) -> Result<Value, reqwest::Error> {
+        let url = format!("{}/config/config", self.url);
+        let response = self
+            .client
+            .get(&url)
+            .header("Content-Type", "application/json")
+            .basic_auth(&self.auth.0, Some(&self.auth.1))
+            .send()
+        .await?;
+        let response = response.error_for_status()?;
+        let document: Document = response.json().await?;
+        Ok(document.data)
+    }
+
     pub async fn put_document(&self, id: &str, data: Value) -> Result<Value, reqwest::Error> {
         let url = format!("{}/projects/{}", self.url, id);
         match self.get_document(id).await {
@@ -177,7 +191,9 @@ impl CouchDB {
     }
 
     pub async fn get_user(&self, email: &str) -> Result<User, reqwest::Error> {
+        println!("Getting user...");
         let url = format!("{}/users/{}", self.url, email);
+        println!("with URL: {}", url);
         let response = self
             .client
             .get(&url)
@@ -188,6 +204,7 @@ impl CouchDB {
 
         let response = response.error_for_status()?;
         let user: User = response.json().await?;
+        println!("User name: {}", user.clone().email);
         Ok(user)
     }
 
