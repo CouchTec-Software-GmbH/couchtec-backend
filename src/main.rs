@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(user_manager.clone()))
             .app_data(web::Data::new(email_manager.clone()))
             .app_data(app_config.clone())
+            .route("/config", web::get().to(handlers::get_config))
             .route("/{id}", web::get().to(handlers::get_document))
             .route("/{id}", web::put().to(handlers::put_document))
             .route("/login", web::post().to(handlers::login))
@@ -69,6 +70,7 @@ async fn main() -> std::io::Result<()> {
             .route("/pre-reset", web::post().to(handlers::send_reset_email))
             .route("/reset", web::post().to(handlers::reset_password))
             .route("/user/{id}", web::delete().to(handlers::delete_user))
+            .route("/user/last-uuid", web::get().to(handlers::get_last_uuid))
     })
     .bind(("0.0.0.0", 3000))?
     .run()
