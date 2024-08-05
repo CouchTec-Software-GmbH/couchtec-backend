@@ -1,6 +1,6 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Number, Value};
 use crate::auth::User;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -89,7 +89,7 @@ impl CouchDB {
                 let updated_doc = Document {
                     id: doc.id.clone(),
                     rev: doc.rev.clone(),
-                    data,
+                    data: CouchDB::combine_json_values(doc.data.clone(), data),
                 };
                 let response = self
                     .client
@@ -158,6 +158,7 @@ impl CouchDB {
                 hashed: user.hashed.clone(),
                 salt: user.salt.clone(),
                 uuids: user.uuids.clone(),
+                last_uuid: user.last_uuid.clone()
             };
             let response = self
                 .client
@@ -222,5 +223,18 @@ impl CouchDB {
 
         response.error_for_status()?;
         Ok(true)
+    }
+
+    pub fn combine_json_values(old_document: Value, new_content: Value) -> Value {
+        let combined = match old_document {
+            Value::Object(mut map) => {
+                if let Value::Object(new_map) = new_content {
+                    map.extend(new_map);
+                }
+                Value::Object(map)
+            },
+            _ => new_content,
+        };
+        combined
     }
 }
