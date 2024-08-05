@@ -5,15 +5,14 @@ use sha2::{Sha256, Digest};
 use hex;
 use chrono::{DateTime, Utc};
 
-use crate::handlers::delete_user;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub email: String,
     pub newsletter: bool,
     pub hashed: String,
     pub salt: String,
-    pub uuids: Vec<String>
+    pub uuids: Vec<String>,
+    pub last_uuid: String
 }
 
 pub struct UserManager {
@@ -96,6 +95,7 @@ impl UserManager {
             hashed,
             salt,
             uuids: Vec::new(),
+            last_uuid: "".to_string()
         };
         let uuid = Uuid::new_v4().to_string();
         self.pre_registered.insert(uuid.clone(), user);
@@ -137,6 +137,10 @@ impl UserManager {
         self.one_time_codes.get(uuid).cloned()
     }
 
+    pub fn get_email_from_token(&self, uuid: &str) -> Option<String> {
+        self.session_cache.get(uuid).map(|token| token.user_id.clone())
+    }
+
     pub fn change_password(&mut self, email: &str, password: &str, newsletter: bool) -> User {
         let salt = Uuid::new_v4().to_string();
         let salted = format!("{}{}", password, salt);
@@ -152,6 +156,7 @@ impl UserManager {
             hashed,
             salt,
             uuids: Vec::new(),
+            last_uuid: "".to_string()
         };
         // self.delete_user(&email);
         self.users_cache.insert(email.to_string(), user.clone());
