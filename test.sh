@@ -18,9 +18,23 @@ curl -X POST http://localhost/api/login \
 -d '{
   "email": "linus@couchtec.com",
   "password": "lol"
-}'
+}' 
 
-export SESSION_TOKEN="85b8d056-5b1b-4846-a9ad-fa7da61c78ed"
+export SESSION_TOKEN=$(curl -X POST http://localhost/api/login \
+-H "Content-Type: application/json" \
+-d '{
+  "email": "linus@couchtec.com",
+  "password": "lol"
+}' | sed 's/"//g')
+
+curl -X GET http://localhost/api/config \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $SESSION_TOKEN"
+
+
+curl -X GET http://localhost/api/user/last-uuid \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $SESSION_TOKEN"
 
 curl -X DELETE http://localhost/api/user/linus@couchtec.com \
 -H "Content-Type: application/json" \
@@ -35,17 +49,11 @@ curl -X GET http://localhost/api/uuids/linus@couchtec.com \
 -H "Authorization: Bearer $SESSION_TOKEN"
 
 
-curl -X PUT http://localhost/api/20 \
+curl -X PUT http://localhost/api/test.6aa5280a-e007-4ed5-87fb-3e2a78db1c52 \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer $SESSION_TOKEN" \
 -d '{
-    "name": "Linus",
-    "price": 100,
-    "description": "This is a pass",
-    "monitoring": {
-        "enabled": true,
-        "interval": 64200
-    }
+    "name": "Linus"
 }'
 
 curl -X GET http://localhost/api/20 \
