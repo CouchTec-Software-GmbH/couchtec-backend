@@ -1,6 +1,6 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Number, Value};
 use crate::auth::User;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,6 +68,20 @@ impl CouchDB {
         }
     }
 
+    pub async fn get_config_data(&self) -> Result<Value, reqwest::Error> {
+        let url = format!("{}/config/config", self.url);
+        let response = self
+            .client
+            .get(&url)
+            .header("Content-Type", "application/json")
+            .basic_auth(&self.auth.0, Some(&self.auth.1))
+            .send()
+        .await?;
+        let response = response.error_for_status()?;
+        let document: Document = response.json().await?;
+        Ok(document.data)
+    }
+
     pub async fn put_document(&self, id: &str, data: Value) -> Result<Value, reqwest::Error> {
         let url = format!("{}/projects/{}", self.url, id);
         match self.get_document(id).await {
@@ -75,7 +89,7 @@ impl CouchDB {
                 let updated_doc = Document {
                     id: doc.id.clone(),
                     rev: doc.rev.clone(),
-                    data,
+                    data: CouchDB::combine_json_values(doc.data.clone(), data),
                 };
                 let response = self
                     .client
@@ -124,7 +138,6 @@ impl CouchDB {
                     uuids: user.uuids.clone(),
                     rev: user_payload.rev.clone(),
                 };
-                println!("Updated user: {:?}", updated_user);
                 let response = self
                     .client
                     .put(&url)
@@ -145,6 +158,7 @@ impl CouchDB {
                 hashed: user.hashed.clone(),
                 salt: user.salt.clone(),
                 uuids: user.uuids.clone(),
+                last_uuid: user.last_uuid.clone()
             };
             let response = self
                 .client
@@ -178,7 +192,9 @@ impl CouchDB {
     }
 
     pub async fn get_user(&self, email: &str) -> Result<User, reqwest::Error> {
+        println!("Getting user...");
         let url = format!("{}/users/{}", self.url, email);
+        println!("with URL: {}", url);
         let response = self
             .client
             .get(&url)
@@ -189,6 +205,7 @@ impl CouchDB {
 
         let response = response.error_for_status()?;
         let user: User = response.json().await?;
+        println!("User name: {}", user.clone().email);
         Ok(user)
     }
 
@@ -206,5 +223,18 @@ impl CouchDB {
 
         response.error_for_status()?;
         Ok(true)
+    }
+
+    pub fn combine_json_values(old_document: Value, new_content: Value) -> Value {
+        let combined = match old_document {
+            Value::Object(mut map) => {
+                if let Value::Object(new_map) = new_content {
+                    map.extend(new_map);
+                }
+                Value::Object(map)
+            },
+            _ => new_content,
+        };
+        combined
     }
 }

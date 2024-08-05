@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use sha2::{Sha256, Digest};
 use hex;
-
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -11,14 +11,25 @@ pub struct User {
     pub newsletter: bool,
     pub hashed: String,
     pub salt: String,
-    pub uuids: Vec<String>
+    pub uuids: Vec<String>,
+    pub last_uuid: String
 }
 
 pub struct UserManager {
     users_cache: HashMap<String, User>,
-    session_cache: HashMap<Uuid, String>,
+    session_cache: HashMap<String, SessionToken>,
     one_time_codes: HashMap<String, String>,
     pre_registered: HashMap<String, User>
+}
+
+pub struct SessionToken {
+    token: Uuid,
+    user_id: String,
+    created_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+    last_used: DateTime<Utc>,
+    device_info: String,
+    is_revoked: bool,
 }
 
 impl UserManager {
@@ -33,6 +44,11 @@ impl UserManager {
     pub fn user_exists(&self, email: &str) -> bool {
         self.users_cache.contains_key(email)
     }
+
+    pub fn get_user(&self, email: &str) -> Option<&User> {
+        self.users_cache.get(email)
+    }
+
     pub fn remove_user(&mut self, email: &str) {
         self.users_cache.remove(email);
     }
@@ -41,12 +57,26 @@ impl UserManager {
         self.users_cache.insert(user.email.clone(), user);
     }
 
+    pub fn session_token_valid(&self, uuid: String) -> bool {
+        match self.session_cache.get(&uuid) {
+            Some(token) => token.is_valid(),
+            None => false
+        }
+    }
+
     pub fn register(&mut self, uuid: String) -> Result<User, &str> {
         if let Some(user) = self.pre_registered.get(&uuid) {
             self.users_cache.insert(user.clone().email, user.clone());
             return Ok(user.clone());
         }
         Err("User not found")
+    }
+
+    pub fn print_out_session_cache(&self) {
+        println!("Session cache:");
+        for uuid in self.session_cache.keys() {
+            println!("{}",uuid);
+        }
     }
 
     pub fn pre_register(&mut self, email: String, password: String, newsletter: bool) -> String {
@@ -65,13 +95,12 @@ impl UserManager {
             hashed,
             salt,
             uuids: Vec::new(),
+            last_uuid: "".to_string()
         };
         let uuid = Uuid::new_v4().to_string();
         self.pre_registered.insert(uuid.clone(), user);
         uuid
     }
-
-
 
     pub fn hash_password(&self, password: String, salt: String) -> String {
         let salted = format!("{}{}", password, salt);
@@ -81,18 +110,21 @@ impl UserManager {
         hex::encode(result)
     }
 
-    pub fn get_user(&self, email: &str) -> Option<&User> {
-        self.users_cache.get(email)
-    }
-    pub fn sign_in(&mut self, password: String, user: User) -> Result<Uuid, &'static str> {
+    pub fn login(&mut self, password: String, user: User) -> Result<Uuid, &'static str> {
         let hashed = self.hash_password(password, user.salt.clone());
 
         if hashed != user.hashed {
             return Err("Password is incorrect");
         }
-        let session_id = Uuid::new_v4();
-        self.session_cache.insert(session_id, user.email.clone());
-        return Ok(session_id);
+
+        let session_token = SessionToken::new(user.email, "".to_string());
+        let uuid = session_token.token;
+        self.session_cache.insert(uuid.to_string(), session_token);
+        return Ok(uuid);
+    }
+
+    pub fn logout(&mut self, uuid: String) {
+        self.session_cache.retain(|x, _| !x.eq(&uuid));
     }
 
     pub fn insert_reset_email_code(&mut self, email: String) -> String {
@@ -101,9 +133,12 @@ impl UserManager {
         one_time_code
     }
 
-
     pub fn get_email_from_code(&self, uuid: &str) -> Option<String> {
         self.one_time_codes.get(uuid).cloned()
+    }
+
+    pub fn get_email_from_token(&self, uuid: &str) -> Option<String> {
+        self.session_cache.get(uuid).map(|token| token.user_id.clone())
     }
 
     pub fn change_password(&mut self, email: &str, password: &str, newsletter: bool) -> User {
@@ -121,13 +156,38 @@ impl UserManager {
             hashed,
             salt,
             uuids: Vec::new(),
+            last_uuid: "".to_string()
         };
+        // self.delete_user(&email);
         self.users_cache.insert(email.to_string(), user.clone());
         user
     }
 
     pub fn delete_user(&mut self, email: &str) {
         self.users_cache.retain(|x, _| !email.eq(x));
+    }
+}
+
+impl SessionToken {
+    fn new(user_id: String, device_info: String) -> Self {
+        let now = Utc::now();
+        SessionToken {
+            token: Uuid::new_v4(),
+            user_id,
+            created_at: now,
+            expires_at: now + chrono::Duration::hours(24),
+            last_used: now,
+            device_info,
+            is_revoked: false,
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.is_revoked && self.expires_at > Utc::now()
+    }
+
+    fn update_last_used(&mut self) {
+        self.last_used = Utc::now();
     }
 }
 
